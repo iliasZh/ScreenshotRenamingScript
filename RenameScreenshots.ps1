@@ -3,7 +3,7 @@ function Get-FormattedDate($filename, [bool]$log)
 	$fileInfo = Get-Item $filename										# get file item by name		
 	$fileDate = $fileInfo.LastWriteTime									# get last write time of the file		
 	$dateStr = $fileDate.ToString()										# convert to string to construct the new name		
-	if ($log) { Write-Host "$filename last write time is $dateStr" }
+	if ($log) { Write-Host "`n$filename last write time is $dateStr" }
 	$dateAndTime = $dateStr.Substring(6,4) + "." + $dateStr.Substring(3,2) + "." + $dateStr.Substring(0,2) + " - " + $dateStr.Substring(11).Replace(":",".")
 	Return $dateAndTime
 }
@@ -13,27 +13,32 @@ function Rename-IfNotEqual([string]$oldname, [string]$newname, [bool]$log, [ref]
 	if ($oldname -cne $newname)									# case sensitive not equal
 	{
 		Rename-Item -Path $oldname -NewName $newname
-		if ($log) { Write-Host "renamed file $oldname, new name: $newname `n" }
+		if ($log) { Write-Host "renamed file $oldname, new name: $newname`n" }
 		$renamedCounter.Value = $renamedCounter.Value + 1
 	}
 	else
 	{
-		if ($log) { Write-Host "$oldname - name already correct `n" }
+		if ($log) { Write-Host "$oldname - name already correct`n" }
 		$untouchedCounter.Value = $untouchedCounter.Value + 1
 	}
+}
+
+function Read-YesNoQuestion([string]$prompt, [ref]$flag, [bool]$flip)
+{
+	do
+	{
+		$ans = Read-Host -Prompt ($prompt + " [y/n]?")
+		if ($ans -ieq "y") { $flag.Value = ($true -xor $flip) }
+		elseif ($ans -ieq "n") { $flag.Value = ($false -xor $flip) }
+		else { Write-Host "Type a correct option!" }
+	} while (($ans -ine "y") -and ($ans -ine "n"))
 }
 
 Write-Host "File renaming script"
 Write-Host "Renames all specified screenshots to `"GameName yyyy.mm.dd - hh.mm.ss.extension`" (last write date and time)`n"
 
 $enableLogs = $true
-do 
-{
-	$ans = Read-Host -Prompt "`nEnable logs? [y/n]"
-	if ($ans -ieq "y") { $enableLogs = $true }
-	elseif ($ans -ieq "n") { $enableLogs = $false }
-	else { Write-Host "Type a correct option!" }
-} while (($ans -ine "y") -and ($ans -ine "n"))
+Read-YesNoQuestion "`nEnable logs?" ([ref]$enableLogs) -flip $false
 
 $screenshotsFolder = "D:\Images\My screenshots\"
 Write-Host "`n`nFolder search path: $screenshotsFolder"
@@ -61,24 +66,19 @@ ForEach ($index in $indices)
 }
 
 $renameAll = $false
-do 
-{
-	$ans = Read-Host -Prompt "`nAsk confirmation for each folder?`n(BE CAREFUL: if you choose NOT to ask, all files will be renamed INSTANTLY!) [y/n]"
-	if ($ans -ieq "y") { $renameAll = $false }
-	elseif ($ans -ieq "n") { $renameAll = $true }
-	else { Write-Host "Type a correct option!" }
-} while (($ans -ine "y") -and ($ans -ine "n"))
+$prompt = "`nAsk confirmation for each folder?`n(BE CAREFUL: if you choose NOT to ask, all files will be renamed INSTANTLY!)"
+Read-YesNoQuestion $prompt -flag ([ref]$renameAll) -flip $true 
 
 
 ForEach ($folderIndex in $indices)
 {
 	$folder = $folders[$folderIndex - 1] 
 	
-	$renameAllInFolder = $false
+	$renameAllInFolder = $renameAll
 	
+	Write-Host "`n`n`n------------------------------------------------------------------------------"
 	if (-not ($renameAll))
 	{
-		Write-Host "`n`n`n------------------------------------------------------------------------------"
 		$continueFlag = $false
 		do
 		{
@@ -104,17 +104,11 @@ ForEach ($folderIndex in $indices)
 
 	ForEach ($extension in $extensions)
 	{
-		$renameCurrExtension = $false
+		$renameCurrExtension = $renameAllInFolder
 
 		if ($renameAllInFolder -eq $false)
 		{
-			do 
-			{
-				$ans = Read-Host -Prompt "Rename all $extension files? [y/n]"
-				if ($ans -ieq "y") { $renameCurrExtension = $true }
-				elseif ($ans -ieq "n") { $renameCurrExtension = $false }
-				else { Write-Host "Type a correct option!" }
-			} while (($ans -ine "y") -and ($ans -ine "n"))
+			Read-YesNoQuestion "Rename all $extension files?" -flag ([ref]$renameAllInFolder) -flip $false
 		}
 
 		$renamedCounter = 0
