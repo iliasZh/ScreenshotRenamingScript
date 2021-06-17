@@ -8,7 +8,7 @@ function Get-FormattedDate([string]$filename, [bool]$log)
 	Return $dateAndTime
 }
 
-function Rename-IfNotEqual([string]$oldname, [string]$newname, [bool]$log, [ref]$renamedCounter, [ref]$untouchedCounter)
+function Rename-IfNotEqual([string]$oldname, [string]$newname, [ref]$renamedCounter, [ref]$untouchedCounter, [bool]$log)
 {
 	if ($oldname -cne $newname)		# case sensitive not equal
 	{
@@ -21,6 +21,15 @@ function Rename-IfNotEqual([string]$oldname, [string]$newname, [bool]$log, [ref]
 		if ($log) { Write-Host "$oldname - name already correct`n" }
 		$untouchedCounter.Value = $untouchedCounter.Value + 1
 	}
+}
+
+# TOP-LEVEL RENAME FUNCTION
+function Rename-ToMyFormat([string]$folderName, [string]$fileName, [string]$extension, [ref]$renamedCounter, [ref]$untouchedCounter, [bool]$log)
+{
+	# you should be in location $screenshotFolder + $folderName
+	$dateAndTime = Get-FormattedDate $fileName $log
+	$newFileName = $folderName + " " + $dateAndTime + $extension
+	Rename-IfNotEqual $fileName $newFileName $renamedCounter $untouchedCounter $log
 }
 
 function Read-YesNoQuestion([string]$prompt, [ref]$flag, [bool]$flip)
@@ -135,9 +144,7 @@ ForEach ($folderIndex in $indices)
 				Set-Location ($screenshotsFolder + $folder)
 				ForEach ($filename in $nameList)
 				{
-					$dateAndTime = Get-FormattedDate $filename $enableLogs
-					$newFilename = $folder + " " + $dateAndTime + $extension
-					Rename-IfNotEqual $filename $newFilename $enableLogs ([ref]$renamedCounter) ([ref]$untouchedCounter) 
+					Rename-ToMyFormat $folder $filename $extension ([ref]$renamedCounter) ([ref]$untouchedCounter) $enableLogs
 				}
 			}
 		}
